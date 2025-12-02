@@ -642,9 +642,17 @@ mermaid.initialize({
     startOnLoad: false,
     theme: 'default',
     flowchart: {
-        useMaxWidth: true,
+        useMaxWidth: false,
         htmlLabels: true,
-        curve: 'basis'
+        curve: 'basis',
+        padding: 20,
+        nodeSpacing: 80,
+        rankSpacing: 80,
+        diagramPadding: 20
+    },
+    themeVariables: {
+        fontSize: '16px',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }
 });
 
@@ -727,6 +735,14 @@ class SQLProcFlowApp {
         this.generator = new FlowchartGenerator();
         this.parseResult = null;
 
+        // Zoom and pan state
+        this.zoomLevel = 1.0;
+        this.isPanning = false;
+        this.startX = 0;
+        this.startY = 0;
+        this.scrollLeft = 0;
+        this.scrollTop = 0;
+
         this.initializeElements();
         this.attachEventListeners();
     }
@@ -737,8 +753,15 @@ class SQLProcFlowApp {
         this.loadExampleBtn = document.getElementById('loadExample');
         this.clearBtn = document.getElementById('clearBtn');
         this.downloadBtn = document.getElementById('downloadBtn');
+        this.flowchartWrapper = document.getElementById('flowchartWrapper');
         this.flowchartContainer = document.getElementById('flowchartContainer');
         this.statsContainer = document.getElementById('statsContainer');
+
+        // Zoom controls
+        this.zoomInBtn = document.getElementById('zoomInBtn');
+        this.zoomOutBtn = document.getElementById('zoomOutBtn');
+        this.resetZoomBtn = document.getElementById('resetZoomBtn');
+        this.fitScreenBtn = document.getElementById('fitScreenBtn');
     }
 
     attachEventListeners() {
@@ -746,6 +769,21 @@ class SQLProcFlowApp {
         this.loadExampleBtn.addEventListener('click', () => this.loadExample());
         this.clearBtn.addEventListener('click', () => this.clear());
         this.downloadBtn.addEventListener('click', () => this.downloadSVG());
+
+        // Zoom controls
+        this.zoomInBtn.addEventListener('click', () => this.zoomIn());
+        this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
+        this.resetZoomBtn.addEventListener('click', () => this.resetZoom());
+        this.fitScreenBtn.addEventListener('click', () => this.fitToScreen());
+
+        // Pan with mouse drag
+        this.flowchartContainer.addEventListener('mousedown', (e) => this.startPan(e));
+        this.flowchartContainer.addEventListener('mousemove', (e) => this.pan(e));
+        this.flowchartContainer.addEventListener('mouseup', () => this.endPan());
+        this.flowchartContainer.addEventListener('mouseleave', () => this.endPan());
+
+        // Zoom with mouse wheel
+        this.flowchartContainer.addEventListener('wheel', (e) => this.handleWheel(e));
 
         // Allow Ctrl/Cmd + Enter to generate
         this.sqlInput.addEventListener('keydown', (e) => {
@@ -773,8 +811,19 @@ class SQLProcFlowApp {
             </div>
         `;
         this.flowchartContainer.classList.remove('has-content');
+        this.flowchartWrapper.classList.remove('has-content');
         this.statsContainer.classList.remove('visible');
         this.downloadBtn.disabled = true;
+
+        // Disable zoom controls
+        this.zoomInBtn.disabled = true;
+        this.zoomOutBtn.disabled = true;
+        this.resetZoomBtn.disabled = true;
+        this.fitScreenBtn.disabled = true;
+
+        // Reset zoom
+        this.zoomLevel = 1.0;
+
         this.sqlInput.focus();
     }
 
@@ -803,8 +852,15 @@ class SQLProcFlowApp {
             // Show statistics
             this.showStatistics();
 
-            // Enable download
+            // Enable download and zoom controls
             this.downloadBtn.disabled = false;
+            this.zoomInBtn.disabled = false;
+            this.zoomOutBtn.disabled = false;
+            this.resetZoomBtn.disabled = false;
+            this.fitScreenBtn.disabled = false;
+
+            // Reset zoom to default
+            this.resetZoom();
 
         } catch (error) {
             console.error('Error generating flowchart:', error);
@@ -819,6 +875,7 @@ class SQLProcFlowApp {
         // Clear container
         this.flowchartContainer.innerHTML = '';
         this.flowchartContainer.classList.add('has-content');
+        this.flowchartWrapper.classList.add('has-content');
 
         // Create a div for mermaid
         const mermaidDiv = document.createElement('div');
@@ -914,6 +971,95 @@ class SQLProcFlowApp {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+    }
+
+    // ========================================================================
+    // Zoom and Pan Methods
+    // ========================================================================
+
+    zoomIn() {
+        this.zoomLevel = Math.min(this.zoomLevel + 0.2, 3.0);
+        this.applyZoom();
+    }
+
+    zoomOut() {
+        this.zoomLevel = Math.max(this.zoomLevel - 0.2, 0.3);
+        this.applyZoom();
+    }
+
+    resetZoom() {
+        this.zoomLevel = 1.0;
+        this.applyZoom();
+        this.flowchartContainer.scrollTop = 0;
+        this.flowchartContainer.scrollLeft = 0;
+    }
+
+    fitToScreen() {
+        const svg = this.flowchartContainer.querySelector('svg');
+        if (!svg) return;
+
+        const containerRect = this.flowchartContainer.getBoundingClientRect();
+        const svgRect = svg.getBoundingClientRect();
+
+        const scaleX = (containerRect.width - 40) / svgRect.width;
+        const scaleY = (containerRect.height - 40) / svgRect.height;
+
+        this.zoomLevel = Math.min(scaleX, scaleY, 1.0);
+        this.applyZoom();
+
+        // Center the flowchart
+        this.flowchartContainer.scrollTop = 0;
+        this.flowchartContainer.scrollLeft = 0;
+    }
+
+    applyZoom() {
+        const mermaid = this.flowchartContainer.querySelector('.mermaid');
+        if (mermaid) {
+            mermaid.style.transform = `scale(${this.zoomLevel})`;
+        }
+    }
+
+    handleWheel(e) {
+        // Only zoom if Ctrl/Cmd key is pressed
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+
+            if (e.deltaY < 0) {
+                this.zoomIn();
+            } else {
+                this.zoomOut();
+            }
+        }
+    }
+
+    startPan(e) {
+        // Only start pan if clicking on the container, not on SVG elements
+        if (e.target === this.flowchartContainer || e.target.closest('.mermaid')) {
+            this.isPanning = true;
+            this.startX = e.pageX - this.flowchartContainer.offsetLeft;
+            this.startY = e.pageY - this.flowchartContainer.offsetTop;
+            this.scrollLeft = this.flowchartContainer.scrollLeft;
+            this.scrollTop = this.flowchartContainer.scrollTop;
+        }
+    }
+
+    pan(e) {
+        if (!this.isPanning) return;
+
+        e.preventDefault();
+
+        const x = e.pageX - this.flowchartContainer.offsetLeft;
+        const y = e.pageY - this.flowchartContainer.offsetTop;
+
+        const walkX = (x - this.startX) * 1.5;
+        const walkY = (y - this.startY) * 1.5;
+
+        this.flowchartContainer.scrollLeft = this.scrollLeft - walkX;
+        this.flowchartContainer.scrollTop = this.scrollTop - walkY;
+    }
+
+    endPan() {
+        this.isPanning = false;
     }
 }
 
