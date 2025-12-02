@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLProcFlow - T-SQL Stored Procedure Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SQLProcFlow</h1>
+            <p class="subtitle">T-SQL Stored Procedure Visualizer</p>
+        </header>
+
+        <div class="main-content">
+            <div class="input-section">
+                <div class="section-header">
+                    <h2>T-SQL Code</h2>
+                    <div class="button-group">
+                        <button id="loadExample" class="btn btn-secondary">Load Example</button>
+                        <button id="clearBtn" class="btn btn-secondary">Clear</button>
+                    </div>
+                </div>
+                <textarea id="sqlInput" placeholder="Paste your T-SQL stored procedure here..."></textarea>
+                <button id="generateBtn" class="btn btn-primary">Generate Flowchart</button>
+            </div>
+
+            <div class="output-section">
+                <div class="section-header">
+                    <h2>Visual Flowchart</h2>
+                    <div class="button-group">
+                        <button id="downloadBtn" class="btn btn-secondary" disabled>Download SVG</button>
+                    </div>
+                </div>
+                <div id="flowchartContainer" class="flowchart-container">
+                    <div class="placeholder">
+                        <svg width="100" height="100" viewBox="0 0 100 100">
+                            <rect x="10" y="10" width="80" height="30" fill="#e0e0e0" rx="5"/>
+                            <rect x="10" y="50" width="80" height="30" fill="#e0e0e0" rx="5"/>
+                            <line x1="50" y1="40" x2="50" y2="50" stroke="#999" stroke-width="2"/>
+                        </svg>
+                        <p>Your flowchart will appear here</p>
+                    </div>
+                </div>
+                <div id="statsContainer" class="stats-container"></div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>How to Use</h3>
+            <ol>
+                <li>Paste your T-SQL stored procedure code in the left panel</li>
+                <li>Click "Generate Flowchart" to visualize the procedure</li>
+                <li>The flowchart will show each step with tables and procedures used</li>
+                <li>Click "Load Example" to see a sample procedure</li>
+            </ol>
+
+            <h3>Supported Features</h3>
+            <ul class="feature-list">
+                <li><strong>Statements:</strong> SELECT, INSERT, UPDATE, DELETE, EXEC</li>
+                <li><strong>Control Flow:</strong> IF/ELSE, WHILE loops, BEGIN/END blocks</li>
+                <li><strong>Detection:</strong> Tables, stored procedures, and variables</li>
+                <li><strong>Visualization:</strong> Interactive flowcharts with Mermaid.js</li>
+            </ul>
+        </div>
+
+        <footer>
+            <p>SQLProcFlow - Open Source T-SQL Visualizer | <a href="https://github.com/jroba81/SQLProcFlow" target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
